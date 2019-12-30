@@ -1,1 +1,1 @@
-# video-crpus-sentence-grounding-TALL
+# video-corpus-sentence-grounding-TALL
