@@ -30,38 +30,39 @@ class TALL(nn.Module):
         # Initializing weights
         self.apply(weights_init)
 
-    def cross_modal_comb(self, visual_feat, sentence_embed):
-        batch_size = visual_feat.size(0)
+    def cross_modal_comb(self, visual_feat, sentence_embed): #cross_modal_comb((200,1024),(200,1024))
+        batch_size = visual_feat.size(0) # 200
         # shape_matrix = torch.zeros(batch_size,batch_size,self.semantic_size)
 
-        vv_feature = visual_feat.expand([batch_size,batch_size,self.semantic_size])
-        ss_feature = sentence_embed.repeat(1,1,batch_size).view(batch_size,batch_size,self.semantic_size)
+        vv_feature = visual_feat.expand([batch_size,batch_size,self.semantic_size]) # (200,200,1024)
+        ss_feature = sentence_embed.repeat(1,1,batch_size).view(batch_size,batch_size,self.semantic_size)  # (200,200,1024)
 
-        concat_feature = torch.cat([vv_feature, ss_feature], 2)
+        concat_feature = torch.cat([vv_feature, ss_feature], 2)  #(200,200,2048)?
 
-        mul_feature = vv_feature * ss_feature # 56,56,1024
-        add_feature = vv_feature + ss_feature # 56,56,1024
+        mul_feature = vv_feature * ss_feature # 56,56,1024   #test: 200,200,1024
+        add_feature = vv_feature + ss_feature # 56,56,1024   #test: 200,200,1024
 
-        comb_feature = torch.cat([mul_feature, add_feature, concat_feature], 2)
+        comb_feature = torch.cat([mul_feature, add_feature, concat_feature], 2) #200,200,4096
 
         return comb_feature
 
 
-    def forward(self, visual_feature_train, sentence_embed_train):
-        transformed_clip_train = self.v2s_lt(visual_feature_train)
-        transformed_clip_train_norm = F.normalize(transformed_clip_train, p=2, dim=1)
+    def forward(self, visual_feature_train, sentence_embed_train): 
+        transformed_clip_train = self.v2s_lt(visual_feature_train) # (200,4096*3) -> (200,1024)
+        transformed_clip_train_norm = F.normalize(transformed_clip_train, p=2, dim=1) # normalized (200,1024)
 
-        transformed_sentence_train = self.s2s_lt(sentence_embed_train)
-        transformed_sentence_train_norm = F.normalize(transformed_sentence_train, p=2, dim=1)
+        transformed_sentence_train = self.s2s_lt(sentence_embed_train)  # (200,4800) -> (200,1024)
+        transformed_sentence_train_norm = F.normalize(transformed_sentence_train, p=2, dim=1) #normalized (200,1024)
 
-        cross_modal_vec_train = self.cross_modal_comb(transformed_clip_train_norm, transformed_sentence_train_norm)
+        cross_modal_vec_train = self.cross_modal_comb(transformed_clip_train_norm, transformed_sentence_train_norm)  #200,200,4096
 
         cross_modal_vec_train = cross_modal_vec_train.unsqueeze(0).permute(0, 3, 1, 2)
+        # unsqueeze -> (1,200,200,4096) -> permute -> (1,4096,200,200)
         mid_output = self.fc1(cross_modal_vec_train)
         mid_output = F.relu(mid_output)
         sim_score_mat_train = self.fc2(mid_output).squeeze(0)
 
-        return sim_score_mat_train
+        return sim_score_mat_train # 3,200,200
 
 
 
